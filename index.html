@@ -948,7 +948,11 @@
 
 <script>
 var PY=3.30579;
-function speak(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.0;u.pitch=1.2;var v=speechSynthesis.getVoices();var f=v.find(function(x){return x.lang.includes('ko')&&(x.name.includes('female')||x.name.includes('Female')||x.name.includes('Yuna')||x.name.includes('Google'))});if(f)u.voice=f;speechSynthesis.speak(u);}
+function speak(t){if(!('speechSynthesis' in window))return;try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.0;u.pitch=1.2;u.volume=1.0;var v=speechSynthesis.getVoices();var f=v.find(function(x){return x.lang.includes('ko')&&(x.name.includes('female')||x.name.includes('Female')||x.name.includes('Yuna')||x.name.includes('Google'))});if(f)u.voice=f;speechSynthesis.speak(u);}catch(ex){}}
+var ttsUnlocked=false;
+function unlockTTS(){if(ttsUnlocked)return;ttsUnlocked=true;if(!('speechSynthesis' in window))return;try{var u=new SpeechSynthesisUtterance('');u.volume=0;speechSynthesis.speak(u);speechSynthesis.getVoices();}catch(ex){}}
+document.addEventListener('touchstart',unlockTTS,{once:true,passive:true});
+document.addEventListener('click',unlockTTS,{once:true});
 if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=function(){speechSynthesis.getVoices()};speechSynthesis.getVoices();}
 function sp(id){document.getElementById('mainNav').style.display='none';document.getElementById('mainNav2').style.display='none';document.getElementById('ft').style.display='none';document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});var e=document.getElementById('P-'+id);if(e)e.classList.add('active');window.scrollTo(0,0);}
 function stc(c){}
