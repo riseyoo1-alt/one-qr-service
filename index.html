@@ -951,11 +951,10 @@ var PY=3.30579;
 /* ─── 브라우저 환경 감지 ─── */
 var UA=navigator.userAgent||'';
 var IS_IOS=/iPhone|iPad|iPod/i.test(UA)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-// 인앱 브라우저(네이버앱, 카카오톡iOS, 라인, 인스타, 페북 등)는 Web Speech 인식 미지원이 대부분
-var IS_INAPP=/NAVER\(inapp|inapp;/i.test(UA)||/KAKAOTALK/i.test(UA)&&IS_IOS||/Line\//i.test(UA)||/Instagram/i.test(UA)||/FBAN|FBAV/i.test(UA)||/DaumApps/i.test(UA)||/everytimeApp/i.test(UA);
+var IS_ANDROID=/Android/i.test(UA);
 var HAS_SR=('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
-// 음성인식 사용 가능 여부: API가 있고 + 인앱 브라우저가 아닐 때만
-var SR_OK=HAS_SR&&!IS_INAPP;
+// 음성인식: API가 있으면 무조건 먼저 시도하고, 실제 실패했을 때만 폴백
+var SR_OK=HAS_SR;
 
 /* ─── TTS(음성 안내): 한국어 목소리 캐싱 (iOS는 목소리 목록이 늦게 로드됨) ─── */
 var koVoice=null;
@@ -980,11 +979,19 @@ function gh(){document.querySelectorAll('.panel').forEach(function(p){p.classLis
 var rec=null,isL=false;
 function toggleTF(){var r=document.getElementById('tfRow');var showing=r.style.display==='flex';r.style.display=showing?'none':'flex';if(!showing)document.getElementById('tfInp').focus();}
 function submitTF(){var v=document.getElementById('tfInp').value.trim();if(!v)return;document.getElementById('tfInp').value='';pV(v);}
-/* 미지원 환경 → 텍스트 입력창 열고 "키보드 마이크(받아쓰기)" 안내 (모든 브라우저에서 동작) */
+/* 미지원 환경 → 텍스트 입력창 + 키보드 마이크 안내 + (안드로이드) 크롬으로 열기 버튼 */
 function openFallback(msg){var s=document.getElementById('vSt');s.style.display='block';s.textContent=msg;
   speak(msg);
   var r=document.getElementById('tfRow');r.style.display='flex';
   var inp=document.getElementById('tfInp');inp.placeholder='키보드의 🎤(마이크) 버튼을 누르고 말씀하세요';
+  // 안드로이드 인앱 브라우저면 "크롬으로 열기" 버튼 제공 (크롬에서는 음성인식이 됨)
+  if(IS_ANDROID&&!document.getElementById('openChromeBtn')){
+    var btn=document.createElement('button');btn.id='openChromeBtn';
+    btn.textContent='🌐 크롬으로 열기 (음성 지원)';
+    btn.style.cssText='display:block;width:calc(100% - 28px);margin:8px 14px 0;padding:11px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer';
+    btn.onclick=function(){var u=location.href.replace(/^https?:\/\//,'');location.href='intent://'+u+'#Intent;scheme='+location.protocol.replace(':','')+';package=com.android.chrome;end';};
+    r.parentNode.insertBefore(btn,r.nextSibling);
+  }
   setTimeout(function(){try{inp.focus();}catch(e){}},100);}
 var srTimer=null;
 /* 안내 음성을 먼저 재생하고, 끝나면 자동으로 듣기 시작 */
@@ -1037,7 +1044,7 @@ function startV(){
     s.textContent='🎤 말씀하세요, 듣고 있습니다';
     // ③ iOS 사파리 가드: API는 있어도 무반응인 경우 10초 후 자동 폴백
     clearTimeout(srTimer);
-    srTimer=setTimeout(function(){if(isL&&!gotResult){stopV();openFallback('음성 인식이 응답하지 않아요. 키보드의 마이크 버튼으로 말씀해 주세요');}},10000);
+    srTimer=setTimeout(function(){if(isL&&!gotResult){stopV();openFallback('음성 인식이 응답하지 않아요. 키보드의 마이크 버튼으로 말씀해 주세요');}},7000);
     try{rec.start();}catch(ex2){clearTimeout(srTimer);stopV();openFallback('음성인식을 시작할 수 없어요. 키보드의 마이크 버튼으로 말씀해 주세요');}
   });
 }
