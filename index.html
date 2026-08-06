@@ -948,20 +948,83 @@
 
 <script>
 var PY=3.30579;
-function speak(t){if(!('speechSynthesis' in window))return;try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.0;u.pitch=1.2;u.volume=1.0;var v=speechSynthesis.getVoices();var f=v.find(function(x){return x.lang.includes('ko')&&(x.name.includes('female')||x.name.includes('Female')||x.name.includes('Yuna')||x.name.includes('Google'))});if(f)u.voice=f;speechSynthesis.speak(u);}catch(ex){}}
+/* ─── 브라우저 환경 감지 ─── */
+var UA=navigator.userAgent||'';
+var IS_IOS=/iPhone|iPad|iPod/i.test(UA)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+// 인앱 브라우저(네이버앱, 카카오톡iOS, 라인, 인스타, 페북 등)는 Web Speech 인식 미지원이 대부분
+var IS_INAPP=/NAVER\(inapp|inapp;/i.test(UA)||/KAKAOTALK/i.test(UA)&&IS_IOS||/Line\//i.test(UA)||/Instagram/i.test(UA)||/FBAN|FBAV/i.test(UA)||/DaumApps/i.test(UA)||/everytimeApp/i.test(UA);
+var HAS_SR=('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
+// 음성인식 사용 가능 여부: API가 있고 + 인앱 브라우저가 아닐 때만
+var SR_OK=HAS_SR&&!IS_INAPP;
+
+/* ─── TTS(음성 안내): 한국어 목소리 캐싱 (iOS는 목소리 목록이 늦게 로드됨) ─── */
+var koVoice=null;
+function pickKoVoice(){if(!('speechSynthesis' in window))return;try{var v=speechSynthesis.getVoices();if(!v||!v.length)return;
+  koVoice=v.find(function(x){return /ko/i.test(x.lang)&&/Yuna|유나/i.test(x.name)})
+    ||v.find(function(x){return /ko/i.test(x.lang)&&/Google/i.test(x.name)})
+    ||v.find(function(x){return /ko/i.test(x.lang)&&/female/i.test(x.name)})
+    ||v.find(function(x){return /ko/i.test(x.lang)});
+}catch(ex){}}
+if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=pickKoVoice;pickKoVoice();}
+function speak(t){if(!('speechSynthesis' in window))return;try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.0;u.pitch=1.1;u.volume=1.0;if(!koVoice)pickKoVoice();if(koVoice)u.voice=koVoice;
+  // iOS 버그 대응: cancel 직후 speak하면 무음이 되는 경우가 있어 약간 지연
+  setTimeout(function(){try{speechSynthesis.speak(u);}catch(e2){}},IS_IOS?60:0);
+}catch(ex){}}
 var ttsUnlocked=false;
-function unlockTTS(){if(ttsUnlocked)return;ttsUnlocked=true;if(!('speechSynthesis' in window))return;try{var u=new SpeechSynthesisUtterance(' ');u.volume=0;u.rate=10;speechSynthesis.speak(u);setTimeout(function(){try{speechSynthesis.cancel();}catch(ex2){}},150);speechSynthesis.getVoices();}catch(ex){}}
+function unlockTTS(){if(ttsUnlocked)return;ttsUnlocked=true;if(!('speechSynthesis' in window))return;try{var u=new SpeechSynthesisUtterance(' ');u.volume=0;u.rate=10;speechSynthesis.speak(u);setTimeout(function(){try{speechSynthesis.cancel();}catch(ex2){}},150);pickKoVoice();}catch(ex){}}
 document.addEventListener('touchstart',unlockTTS,{once:true});
 document.addEventListener('click',unlockTTS,{once:true});
-if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=function(){speechSynthesis.getVoices()};speechSynthesis.getVoices();}
 function sp(id){document.getElementById('mainNav').style.display='none';document.getElementById('mainNav2').style.display='none';document.getElementById('ft').style.display='none';document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});var e=document.getElementById('P-'+id);if(e)e.classList.add('active');window.scrollTo(0,0);}
 function stc(c){}
 function gh(){document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});document.getElementById('mainNav').style.display='grid';document.getElementById('mainNav2').style.display='block';document.getElementById('ft').style.display='block';window.scrollTo(0,0);}
 var rec=null,isL=false;
 function toggleTF(){var r=document.getElementById('tfRow');var showing=r.style.display==='flex';r.style.display=showing?'none':'flex';if(!showing)document.getElementById('tfInp').focus();}
 function submitTF(){var v=document.getElementById('tfInp').value.trim();if(!v)return;document.getElementById('tfInp').value='';pV(v);}
-function startV(){if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){var s0=document.getElementById('vSt');s0.style.display='block';s0.textContent='이 브라우저는 음성인식을 지원하지 않아요. 아래 텍스트로 입력해주세요';document.getElementById('tfRow').style.display='flex';document.getElementById('tfInp').focus();return;}if(isL){stopV();return;}var S=window.SpeechRecognition||window.webkitSpeechRecognition;try{rec=new S();}catch(ex){var s1=document.getElementById('vSt');s1.style.display='block';s1.textContent='음성인식을 시작할 수 없어요. 아래 텍스트로 입력해주세요';document.getElementById('tfRow').style.display='flex';return;}rec.lang='ko-KR';rec.continuous=false;rec.interimResults=false;var b=document.getElementById('vBar'),s=document.getElementById('vSt');b.classList.add('listening');b.querySelector('.txt').textContent='듣고 있습니다...';s.style.display='block';s.textContent='🎤 음성 인식 중...';isL=true;rec.onresult=function(e){var t=e.results[0][0].transcript;s.textContent='인식: "'+t+'"';setTimeout(function(){pV(t);stopV()},400)};rec.onerror=function(e){var msg;switch(e&&e.error){case 'no-speech':msg='음성이 감지되지 않았어요. 다시 말씀해 주세요';break;case 'not-allowed':case 'permission-denied':msg='마이크 권한이 꺼져있어요. 브라우저 설정에서 마이크 권한을 허용해주세요';break;case 'audio-capture':msg='마이크를 찾을 수 없어요. 기기에 마이크가 연결되어 있는지 확인해주세요';break;case 'network':msg='네트워크 연결을 확인해주세요';break;case 'service-not-allowed':msg='이 브라우저에서는 음성인식이 지원되지 않아요. 아래 텍스트로 입력해주세요';break;case 'aborted':stopV();return;default:msg='음성인식을 사용할 수 없어요('+(e&&e.error?e.error:'알 수 없음')+'). 아래 텍스트로 입력해주세요';}document.getElementById('vSt').textContent=msg;if(e&&e.error!=='no-speech')document.getElementById('tfRow').style.display='flex';if(e&&e.error==='no-speech')speak(msg);stopV();};rec.onend=function(){if(isL)stopV()};rec.start();}
-function stopV(){isL=false;document.getElementById('vBar').classList.remove('listening');document.getElementById('vBar').querySelector('.txt').textContent='말로 하기';if(rec)rec.stop();setTimeout(function(){document.getElementById('vSt').style.display='none'},5000);}
+/* 미지원 환경 → 텍스트 입력창 열고 "키보드 마이크(받아쓰기)" 안내 (모든 브라우저에서 동작) */
+function openFallback(msg){var s=document.getElementById('vSt');s.style.display='block';s.textContent=msg;
+  var r=document.getElementById('tfRow');r.style.display='flex';
+  var inp=document.getElementById('tfInp');inp.placeholder='키보드의 🎤(마이크) 버튼을 누르고 말씀하세요';
+  setTimeout(function(){try{inp.focus();}catch(e){}},100);}
+var srTimer=null;
+function startV(){
+  if(isL){stopV();return;}
+  // ① 인앱 브라우저(네이버앱 등)·미지원 브라우저: 키보드 받아쓰기로 안내
+  if(!SR_OK){openFallback('이 브라우저는 자체 음성인식이 지원되지 않아요. 입력창을 누른 뒤 키보드의 🎤 마이크 버튼으로 말씀해 주세요');return;}
+  var S=window.SpeechRecognition||window.webkitSpeechRecognition;
+  try{rec=new S();}catch(ex){openFallback('음성인식을 시작할 수 없어요. 키보드의 🎤 마이크 버튼으로 말씀해 주세요');return;}
+  rec.lang='ko-KR';rec.continuous=false;rec.interimResults=false;rec.maxAlternatives=1;
+  var b=document.getElementById('vBar'),s=document.getElementById('vSt');
+  b.classList.add('listening');b.querySelector('.txt').textContent='듣고 있습니다...';
+  s.style.display='block';s.textContent='🎤 음성 인식 중...';isL=true;
+  var gotResult=false;
+  // ② iOS 사파리 가드: API는 있어도 침묵/무반응인 경우가 있어 10초 후 자동 폴백
+  clearTimeout(srTimer);
+  srTimer=setTimeout(function(){if(isL&&!gotResult){stopV();openFallback('음성 인식이 응답하지 않아요. 키보드의 🎤 마이크 버튼으로 말씀해 주세요');}},10000);
+  rec.onresult=function(e){gotResult=true;clearTimeout(srTimer);try{var t=e.results[0][0].transcript;s.textContent='인식: "'+t+'"';setTimeout(function(){pV(t);stopV()},400);}catch(ex){stopV();}};
+  rec.onerror=function(e){clearTimeout(srTimer);var err=e&&e.error;var msg;
+    switch(err){
+      case 'no-speech':msg='음성이 감지되지 않았어요. 다시 말씀해 주세요';break;
+      case 'not-allowed':case 'permission-denied':
+        msg=IS_IOS?'마이크 권한이 꺼져있어요. 아이폰 설정 > Safari(또는 해당 앱) > 마이크를 허용해 주세요':'마이크 권한이 꺼져있어요. 브라우저 설정에서 마이크 권한을 허용해주세요';break;
+      case 'audio-capture':msg='마이크를 찾을 수 없어요. 기기 마이크를 확인해 주세요';break;
+      case 'network':msg='네트워크 연결을 확인해주세요';break;
+      case 'service-not-allowed':
+        msg=IS_IOS?'아이폰 설정 > Siri 및 검색 > "Siri에게 요청하기"와 설정 > 일반 > 키보드 > "받아쓰기 활성화"를 켜거나, 키보드의 🎤 버튼으로 입력해 주세요':'이 브라우저에서는 음성인식이 지원되지 않아요. 키보드의 🎤 마이크 버튼으로 입력해 주세요';break;
+      case 'aborted':stopV();return;
+      default:msg='음성인식을 사용할 수 없어요. 키보드의 🎤 마이크 버튼으로 입력해 주세요';
+    }
+    stopV();
+    if(err==='no-speech'){var st=document.getElementById('vSt');st.style.display='block';st.textContent=msg;speak(msg);}
+    else{openFallback(msg);}
+  };
+  rec.onend=function(){clearTimeout(srTimer);if(isL)stopV()};
+  try{rec.start();}catch(ex2){clearTimeout(srTimer);stopV();openFallback('음성인식을 시작할 수 없어요. 키보드의 🎤 마이크 버튼으로 말씀해 주세요');}
+}
+function stopV(){isL=false;clearTimeout(srTimer);document.getElementById('vBar').classList.remove('listening');document.getElementById('vBar').querySelector('.txt').textContent=SR_OK?'말로 하기':'말로 입력하기 (키보드 🎤)';if(rec){try{rec.stop();}catch(e){}}setTimeout(function(){document.getElementById('vSt').style.display='none'},6000);}
+/* 페이지 로드 시: 미지원 환경이면 버튼 문구를 미리 바꿔 혼란 방지 */
+document.addEventListener('DOMContentLoaded',function(){
+  if(!SR_OK){var b=document.getElementById('vBar');if(b)b.querySelector('.txt').textContent='말로 입력하기 (키보드 🎤)';}
+});
 
 
 function korToNum(s){
